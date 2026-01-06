@@ -1,9 +1,10 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
-from models import db, User, Song
+from models import db, User, Song, Playlist, Feedback
 from recommender import get_recommendations
+from functools import wraps
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='static', static_url_path='/static')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///music.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 CORS(app)
@@ -16,17 +17,81 @@ def seed_db():
     seed_data.seed()
     return jsonify({"message": "Database seeded"})
 
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        # In a real app, we'd check the token/session. 
+        # Here we'll expect a simple header or param for simplicity in this dev environment, 
+        # OR we'll trust the client to send the user_id and we check the DB.
+        # Let's check a header 'X-User-ID' for simplicity 
+        user_id = request.headers.get('X-User-ID')
+        if not user_id:
+             return jsonify({"message": "Unauthorized"}), 401
+        
+        user = User.query.get(user_id)
+        if not user or user.role != 'admin':
+            return jsonify({"message": "Forbidden: Admins only"}), 403
+        
+        return f(*args, **kwargs)
+    return decorated_function
+
+@app.route('/songs', methods=['GET', 'POST'])
+def handle_songs():
+    if request.method == 'POST':
+        return add_song()
+    return get_songs()
+
+@app.route('/songs/<int:song_id>', methods=['DELETE'])
+@admin_required
+def delete_song(song_id):
+    song = Song.query.get(song_id)
+    if not song:
+        return jsonify({"message": "Song not found"}), 404
+    
+    db.session.delete(song)
+    db.session.commit()
+    return jsonify({"message": "Song deleted successfully"}), 200
+
+def add_song():
+    # Admin check manually here if not using decorator on the branching logic 
+    # or better, separate the route functions. But let's check auth inside.
+    user_id = request.headers.get('X-User-ID')
+    if not user_id:
+            return jsonify({"message": "Unauthorized"}), 401
+    user = User.query.get(user_id)
+    if not user or user.role != 'admin':
+        return jsonify({"message": "Forbidden"}), 403
+
+    data = request.json
+    new_song = Song(
+        title=data.get('title'),
+        artist=data.get('artist'),
+        genre=data.get('genre'),
+        mood=data.get('mood'),
+        tempo=data.get('tempo'),
+        energy=data.get('energy'),
+        filename=data.get('filename') # Optional
+    )
+    db.session.add(new_song)
+    db.session.commit()
+    return jsonify({"message": "Song added", "id": new_song.id}), 201
+
 @app.route('/songs', methods=['GET'])
 def get_songs():
     songs = Song.query.all()
-    # Using a copyright-free placeholder URL for demo purposes
-    # This is a short loop or sample
     demo_url = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"
+    
+    # Generate unique artwork for each song based on ID
+    def get_artwork_url(song_id, title):
+        # Using picsum.photos dictionary for random images
+        seed = abs(hash(title)) % 1000
+        return f"https://picsum.photos/seed/{seed}/400/400"
     
     return jsonify([{
         "id": s.id, "title": s.title, "artist": s.artist, 
         "genre": s.genre, "mood": s.mood,
-        "preview_url": s.filename if s.filename else demo_url
+        "preview_url": f"http://localhost:5000{s.filename}" if s.filename else demo_url,
+        "artwork_url": get_artwork_url(s.id, s.title)
     } for s in songs])
 
 @app.route('/search', methods=['GET'])
@@ -43,10 +108,16 @@ def search_songs():
     ).all()
     
     demo_url = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"
+    
+    def get_artwork_url(song_id, title):
+        seed = abs(hash(title)) % 1000
+        return f"https://picsum.photos/seed/{seed}/400/400"
+    
     return jsonify([{
         "id": s.id, "title": s.title, "artist": s.artist, 
         "genre": s.genre, "mood": s.mood,
-        "preview_url": s.filename if s.filename else demo_url
+        "preview_url": f"http://localhost:5000{s.filename}" if s.filename else demo_url,
+        "artwork_url": get_artwork_url(s.id, s.title)
     } for s in results])
 
 @app.route('/recommend', methods=['GET'])
@@ -57,10 +128,17 @@ def recommend():
     recs = get_recommendations(user_id=user_id, song_id=song_id)
     
     demo_url = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"
+    
+    def get_artwork_url(song_id, title):
+        # Using picsum.photos for reliable random images
+        seed = abs(hash(title)) % 1000
+        return f"https://picsum.photos/seed/{seed}/400/400"
+    
     return jsonify([{
         "id": s.id, "title": s.title, "artist": s.artist, 
         "genre": s.genre, "mood": s.mood,
-        "preview_url": s.filename if s.filename else demo_url
+        "preview_url": f"http://localhost:5000{s.filename}" if s.filename else demo_url,
+        "artwork_url": get_artwork_url(s.id, s.title)
     } for s in recs])
 
     return jsonify([{
@@ -159,6 +237,7 @@ def register():
     new_user = User(
         username=data.get('username'),
         password=data.get('password'), # In prod, hash this!
+        role=data.get('role', 'user'),
         preferences=data.get('preferences', '{}')
     )
     db.session.add(new_user)
@@ -167,16 +246,23 @@ def register():
 
 @app.route('/login', methods=['POST'])
 def login():
-    data = request.json
-    user = User.query.filter_by(username=data.get('username')).first()
-    if user and user.password == data.get('password'):
-        return jsonify({
-            "message": "Login successful", 
-            "user_id": user.id, 
-            "username": user.username,
-            "preferences": user.preferences
-        })
-    return jsonify({"message": "Invalid credentials"}), 401
+    try:
+        data = request.json
+        # print(f"Login attempt for: {data.get('username')}")
+        user = User.query.filter_by(username=data.get('username')).first()
+        
+        if user and user.password == data.get('password'):
+            return jsonify({
+                "message": "Login successful", 
+                "user_id": user.id, 
+                "username": user.username,
+                "role": user.role,
+                "preferences": user.preferences
+            })
+        return jsonify({"message": "Invalid credentials"}), 401
+    except Exception as e:
+        print(f"Error in login: {e}")
+        return jsonify({"message": "Server error"}), 500
 
 @app.route('/user/<int:user_id>', methods=['GET'])
 def get_user_profile(user_id):
@@ -185,8 +271,35 @@ def get_user_profile(user_id):
         return jsonify({"message": "User not found"}), 404
     return jsonify({
         "username": user.username,
+        "role": user.role,
         "preferences": user.preferences
     })
+
+
+
+@app.route('/feedback', methods=['POST'])
+def submit_feedback():
+    data = request.json
+    new_feedback = Feedback(
+        name=data.get('name'),
+        rating=data.get('rating'),
+        message=data.get('message')
+    )
+    db.session.add(new_feedback)
+    db.session.commit()
+    return jsonify({"message": "Feedback submitted"}), 201
+
+@app.route('/feedback', methods=['GET'])
+@admin_required
+def get_feedback():
+    feedbacks = Feedback.query.order_by(Feedback.created_at.desc()).all()
+    return jsonify([{
+        "id": f.id,
+        "name": f.name,
+        "rating": f.rating,
+        "message": f.message,
+        "created_at": f.created_at.isoformat()
+    } for f in feedbacks])
 
 if __name__ == '__main__':
     with app.app_context():
@@ -195,3 +308,4 @@ if __name__ == '__main__':
             import seed_data
             seed_data.seed()
     app.run(debug=True, port=5000)
+

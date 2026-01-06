@@ -20,6 +20,42 @@
   --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.4);
 }
 
+/* Light Theme */
+[data-theme="light"] {
+  --bg-primary: #f8f9fa;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f1f3f5;
+  --accent: #7c3aed;
+  --accent-hover: #6d28d9;
+  --accent-glow: rgba(124, 58, 237, 0.3);
+  --text-primary: #1a1a1a;
+  --text-secondary: #52525b;
+  --text-muted: #a1a1aa;
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-border: rgba(0, 0, 0, 0.1);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.12);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.16);
+}
+
+/* Smooth transitions for theme changes */
+:root,
+[data-theme="light"] {
+  transition: background-color 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+    color 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+body {
+  transition: background 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+* {
+  transition: background-color 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+    color 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
 * {
   box-sizing: border-box;
 }
@@ -74,7 +110,7 @@ h6 {
 
 h1 {
   font-size: clamp(2rem, 5vw, 3.5rem);
-  background: linear-gradient(135deg, #fff 0%, #a1a1aa 100%);
+  background: linear-gradient(135deg, var(--text-primary) 0%, var(--text-secondary) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -144,6 +180,8 @@ p {
 .sidebar {
   width: 260px;
   padding: 2rem 1.5rem;
+  padding-bottom: 100px;
+  /* Extra padding for theme toggle button */
   border-right: 1px solid var(--glass-border);
   position: fixed;
   height: 100vh;
@@ -180,6 +218,7 @@ p {
     width: 100%;
     height: auto;
     position: relative;
+    padding-bottom: 2rem;
   }
 
   .main-content {
@@ -210,6 +249,16 @@ p {
   to {
     opacity: 1;
     transform: translateX(0);
+  }
+}
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
   }
 }
 

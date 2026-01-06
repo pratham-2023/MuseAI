@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 
 const Login = () => {
@@ -6,6 +7,8 @@ const Login = () => {
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const navigate = useNavigate();
+
+    const { login } = useAuth();
 
     const handleLogin = async (e) => {
         e.preventDefault();
@@ -21,9 +24,8 @@ const Login = () => {
             const data = await res.json();
 
             if (res.ok) {
-                localStorage.setItem('user', JSON.stringify(data));
-                navigate('/'); // Redirect to home
-                window.location.reload(); // Quick refresh to update UI state
+                login(data);
+                navigate('/');
             } else {
                 setError(data.message);
             }
@@ -84,6 +86,12 @@ const Login = () => {
                 <p style={{ marginTop: '1.5rem', color: 'var(--text-secondary)' }}>
                     Don't have an account? <Link to="/register" style={{ color: 'var(--accent)' }}>Sign up</Link>
                 </p>
+
+                <div style={{ marginTop: '2rem', borderTop: '1px solid var(--glass-border)', paddingTop: '1rem' }}>
+                    <Link to="/admin/login" style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', textDecoration: 'none' }}>
+                        Login as Admin
+                    </Link>
+                </div>
             </div>
         </div>
     );

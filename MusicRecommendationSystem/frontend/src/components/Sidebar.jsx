@@ -1,15 +1,17 @@
 import React from 'react';
-import { Home, Search, Library, User, Disc3 } from 'lucide-react';
+import { Home, Search, Library, User, Disc3, MessageSquare } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 const Sidebar = () => {
   const location = useLocation();
-  
+  const { user } = useAuth();
+
   const NavItem = ({ to, icon: Icon, label }) => {
     const active = location.pathname === to;
     return (
-      <Link 
-        to={to} 
+      <Link
+        to={to}
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -40,7 +42,9 @@ const Sidebar = () => {
         <NavItem to="/" icon={Home} label="Home" />
         <NavItem to="/search" icon={Search} label="Search" />
         <NavItem to="/library" icon={Library} label="Your Library" />
+        <NavItem to="/feedback" icon={MessageSquare} label="Feedback" />
         <NavItem to="/profile" icon={User} label="Profile" />
+        {user?.role === 'admin' && <NavItem to="/admin" icon={Disc3} label="Admin Dashboard" />}
       </nav>
     </div>
   );

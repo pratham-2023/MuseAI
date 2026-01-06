@@ -6,6 +6,7 @@ const SongCard = ({ song }) => {
     const { playSong, currentSong, isPlaying } = usePlayer();
     const [liked, setLiked] = useState(false);
     const [isHovered, setIsHovered] = useState(false);
+    const [imageError, setImageError] = useState(false);
     const isCurrentSong = currentSong?.id === song.id;
 
     const handleLike = async (e) => {
@@ -76,7 +77,9 @@ const SongCard = ({ song }) => {
                 style={{
                     width: '100%',
                     aspectRatio: '1/1',
-                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    background: (song.artwork_url && !imageError)
+                        ? '#1a1a24'
+                        : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                     borderRadius: 'var(--radius-md)',
                     marginBottom: '0.875rem',
                     display: 'flex',
@@ -87,12 +90,39 @@ const SongCard = ({ song }) => {
                     boxShadow: 'var(--shadow-sm)'
                 }}
             >
-                {/* Music Icon */}
+                {/* Actual Image */}
+                {song.artwork_url && !imageError && (
+                    <img
+                        src={song.artwork_url}
+                        alt={song.title}
+                        onError={() => setImageError(true)}
+                        style={{
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'cover',
+                            position: 'absolute',
+                            inset: 0
+                        }}
+                    />
+                )}
+
+                {/* Fallback icon if image fails to load */}
+                {(!song.artwork_url || imageError) && (
+                    <div style={{
+                        fontSize: '3rem',
+                        opacity: 0.4,
+                        filter: 'brightness(1.2)',
+                        zIndex: 1
+                    }}>🎵</div>
+                )}
+
+                {/* Dark overlay for better contrast */}
                 <div style={{
-                    fontSize: '3rem',
-                    opacity: 0.4,
-                    filter: 'brightness(1.2)'
-                }}>🎵</div>
+                    position: 'absolute',
+                    inset: 0,
+                    background: 'linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.4) 100%)',
+                    zIndex: 1
+                }} />
 
                 {/* Play Button Overlay */}
                 {isHovered && (
@@ -103,7 +133,8 @@ const SongCard = ({ song }) => {
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        animation: 'fadeIn 0.2s ease'
+                        animation: 'fadeIn 0.2s ease',
+                        zIndex: 2
                     }}>
                         <div style={{
                             width: '48px',
@@ -130,7 +161,8 @@ const SongCard = ({ song }) => {
                     display: 'flex',
                     gap: '0.5rem',
                     opacity: isHovered ? 1 : 0,
-                    transition: 'opacity 0.2s'
+                    transition: 'opacity 0.2s',
+                    zIndex: 3
                 }}>
                     <button
                         onClick={addToPlaylist}
@@ -183,7 +215,8 @@ const SongCard = ({ song }) => {
                         left: '0.5rem',
                         display: 'flex',
                         gap: '2px',
-                        alignItems: 'flex-end'
+                        alignItems: 'flex-end',
+                        zIndex: 3
                     }}>
                         {[0, 1, 2].map(i => (
                             <div

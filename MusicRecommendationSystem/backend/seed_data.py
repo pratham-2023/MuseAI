@@ -1,5 +1,7 @@
 from app import app, db
 from models import Song, User
+import json
+import os
 
 def seed():
     with app.app_context():
@@ -9,24 +11,39 @@ def seed():
             print("Database already seeded.")
             return
 
-        # Sample Data
-        songs = [
-            Song(title="Shape of You", artist="Ed Sheeran", genre="Pop", mood="Happy", tempo=96.0, energy=0.8),
-            Song(title="Blinding Lights", artist="The Weeknd", genre="Synth-Pop", mood="Energetic", tempo=171.0, energy=0.9),
-            Song(title="Someone Like You", artist="Adele", genre="Soul", mood="Sad", tempo=67.0, energy=0.4),
-            Song(title="Bohemian Rhapsody", artist="Queen", genre="Rock", mood="Dramatic", tempo=72.0, energy=0.7),
-            Song(title="Levitating", artist="Dua Lipa", genre="Pop", mood="Dance", tempo=103.0, energy=0.8),
-            Song(title="Numb", artist="Linkin Park", genre="Rock", mood="Angry", tempo=110.0, energy=0.9),
-            Song(title="Uptown Funk", artist="Mark Ronson", genre="Funk", mood="Happy", tempo=115.0, energy=0.9),
-            Song(title="Hotel California", artist="Eagles", genre="Rock", mood="Chill", tempo=74.0, energy=0.6),
-            Song(title="Bad Guy", artist="Billie Eilish", genre="Pop", mood="Dark", tempo=135.0, energy=0.5),
-            Song(title="Thinking Out Loud", artist="Ed Sheeran", genre="Pop", mood="Romantic", tempo=79.0, energy=0.6),
-        ]
-
-        db.session.add_all(songs)
+        # Load metadata from JSON file
+        metadata_file = os.path.join(os.path.dirname(__file__), 'songs_metadata.json')
+        
+        if os.path.exists(metadata_file):
+            with open(metadata_file, 'r', encoding='utf-8') as f:
+                songs_data = json.load(f)
+            
+            songs = []
+            for song_data in songs_data:
+                song = Song(
+                    title=song_data['title'],
+                    artist=song_data['artist'],
+                    genre=song_data['genre'],
+                    mood=song_data['mood'],
+                    tempo=song_data.get('tempo', 120.0),
+                    energy=song_data.get('energy', 0.7),
+                    filename=f"/static/songs/{song_data['filename']}"
+                )
+                songs.append(song)
+            
+            db.session.add_all(songs)
+            print(f"Added {len(songs)} songs from metadata file")
+        else:
+            print("Warning: songs_metadata.json not found, using sample data")
+            # Fallback to sample data
+            songs = [
+                Song(title="Shape of You", artist="Ed Sheeran", genre="Pop", mood="Happy", tempo=96.0, energy=0.8),
+                Song(title="Blinding Lights", artist="The Weeknd", genre="Synth-Pop", mood="Energetic", tempo=171.0, energy=0.9),
+            ]
+            db.session.add_all(songs)
         
         # Test User
-        admin = User(username="admin", password="password", preferences='{"genres": ["Pop", "Rock"]}')
+        admin = User(username="admin", password="password", role="admin", preferences='{"genres": ["Pop", "Rock"]}')
         db.session.add(admin)
 
         db.session.commit()

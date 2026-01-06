@@ -6,6 +6,14 @@ const Home = () => {
     const [recommendations, setRecommendations] = useState([]);
     const [loading, setLoading] = useState(true);
 
+    const getGreeting = () => {
+        const hour = new Date().getHours();
+        if (hour >= 5 && hour < 12) return 'Good Morning';
+        if (hour >= 12 && hour < 17) return 'Good Afternoon';
+        if (hour >= 17 && hour < 21) return 'Good Evening';
+        return 'Good Night';
+    };
+
     useEffect(() => {
         const fetchData = async () => {
             try {
@@ -62,7 +70,7 @@ const Home = () => {
                         Welcome Back
                     </span>
                 </div>
-                <h1 style={{ marginBottom: '0.75rem' }}>Good Evening</h1>
+                <h1 style={{ marginBottom: '0.75rem' }}>{getGreeting()}</h1>
                 <p style={{
                     fontSize: '1.125rem',
                     color: 'var(--text-secondary)',
